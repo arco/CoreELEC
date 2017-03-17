@@ -1,0 +1,114 @@
+  # Optimize for Cortex-A5
+    TARGET_CPU="cortex-a5"
+    TARGET_FLOAT="hard"
+    TARGET_FPU="neon-vfpv4"
+    TARGET_FEATURES="32bit"
+
+  # Use linaro toolchain to build kernel
+    KERNEL_TOOLCHAIN="arm-linux-gnueabihf"
+
+  # Build optimizations (size/normal)
+    OPTIMIZATIONS="normal"
+
+  # Bootloader to use (syslinux / u-boot / atv-bootloader / bcm2835-bootloader)
+    BOOTLOADER="u-boot"
+
+  # u-boot version to use (default)
+    UBOOT_VERSION="vendor"
+
+  # Configuration for u-boot
+    UBOOT_CONFIG=""
+
+  # Target Configfile for u-boot
+    UBOOT_CONFIGFILE=""
+
+  # Kernel target for u-boot (default 'uImage' if BOOTLOADER=u-boot) (uImage / zImage)
+    KERNEL_TARGET="uImage-dtb"
+
+  # Kernel extra targets to build
+    KERNEL_UBOOT_EXTRA_TARGET="meson8b_mk809plus.dtd meson8b_mk809plus.dtb"
+
+  # Build Android kernel image using mkbootimg
+    BUILD_ANDROID_BOOTIMG="yes"
+
+  # Additional kernel make parameters (for example to specify the u-boot loadaddress)
+    KERNEL_MAKE_EXTRACMD=""
+
+  # Kernel to use. values can be:
+  # default:  default mainline kernel
+    LINUX="amlogic-3.10"
+
+################################################################################
+# setup build defaults
+################################################################################
+
+  # Project CFLAGS
+    PROJECT_CFLAGS=""
+
+  # SquashFS compression method (gzip / lzo / xz / zstd / lz4)
+    SQUASHFS_COMPRESSION="lz4"
+
+################################################################################
+# setup project defaults
+################################################################################
+
+  # build and install ALSA Audio support (yes / no)
+    ALSA_SUPPORT="yes"
+
+  # OpenGL(X) implementation to use (no / Mesa)
+    OPENGL="no"
+
+  # OpenGL-ES implementation to use (no / bcm2835-driver / opengl-meson6 / opengl-meson8)
+    OPENGLES="opengl-meson_legacy"
+
+  # Amlogic Meson SOC family (8 / 6 / gxbb)
+    MESON_FAMILY="8"
+
+  # include uvesafb support (yes / no)
+    UVESAFB_SUPPORT="no"
+
+  # Displayserver to use (x11 / no)
+    DISPLAYSERVER="no"
+
+  # Windowmanager to use (ratpoison / fluxbox / none)
+    WINDOWMANAGER="none"
+
+  # Xorg Graphic drivers to use (all / i915,i965,r200,r300,r600,nvidia,nouveau,vmware)
+  # Space separated list is supported,
+  # e.g. GRAPHIC_DRIVERS="i915 i965 r300 r600 radeonsi nvidia nouveau"
+    GRAPHIC_DRIVERS=""
+
+  # KODI Player implementation to use (default / bcm2835-driver / libfslvpuwrap / libamcodec)
+    KODIPLAYER_DRIVER="libamcodec"
+
+  # Modules to install in initramfs for early boot
+    INITRAMFS_MODULES=""
+
+  # additional drivers to install:
+  # for a list of additinoal drivers see packages/linux-drivers
+  # Space separated list is supported,
+  # e.g. ADDITIONAL_DRIVERS="DRIVER1 DRIVER2"
+    ADDITIONAL_DRIVERS=""
+
+  # additional packages to install
+    ADDITIONAL_PACKAGES="iw"
+
+  # additional Firmware to use (dvb-firmware, misc-firmware, wlan-firmware)
+  # Space separated list is supported,
+  # e.g. FIRMWARE="dvb-firmware misc-firmware wlan-firmware"
+    FIRMWARE="brcmfmac_sdio-firmware-aml_legacy"
+
+  # build and install ATV IR remote support (yes / no)
+    ATVCLIENT_SUPPORT="no"
+
+  # Amlogic IR remote support (yes / no)
+    AMREMOTE_LEGACY_SUPPORT="yes"
+
+  # build with installer (yes / no)
+    INSTALLER_SUPPORT="no"
+
+  # kernel image name
+    KERNEL_NAME="kernel.img"
+
+  # build and install driver addons (yes / no)
+    DRIVER_ADDONS_SUPPORT="yes"

@@ -1,0 +1,22 @@
+diff -Naur a/xbmc/utils/CPUInfo.cpp b/xbmc/utils/CPUInfo.cpp
+--- a/xbmc/utils/CPUInfo.cpp	2015-12-15 00:07:12.000000000 +0100
++++ b/xbmc/utils/CPUInfo.cpp	2015-12-17 04:30:09.941901235 +0100
+@@ -99,6 +99,8 @@
+ 
+ #include "utils/StringUtils.h"
+ 
++#include "utils/AMLUtils.h"
++
+ // In milliseconds
+ #define MINIMUM_TIME_BETWEEN_READS 500
+ 
+@@ -609,7 +611,8 @@
+     if (!ret)
+     {
+       ret = fscanf(m_fProcTemperature, "%d", &value);
+-      value = value / 1000;
++      if (!aml_present())
++        value = value / 1000;
+       scale = 'c';
+       ret++;
+     }

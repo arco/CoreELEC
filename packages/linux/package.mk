@@ -17,6 +17,13 @@ PKG_STAMP="$KERNEL_TARGET $KERNEL_MAKE_EXTRACMD $KERNEL_UBOOT_EXTRA_TARGET"
 PKG_PATCH_DIRS="$LINUX"
 
 case "$LINUX" in
+   amlogic-3.10)
+    LINUX_VERSION="3.10-104b62a"
+    PKG_VERSION="amlogic-$LINUX_VERSION"
+    PKG_URL="https://github.com/arco/linux-amlogic/releases/download/$LINUX_VERSION/$PKG_NAME-$PKG_VERSION.tar.xz"
+    PKG_DEPENDS_TARGET="$PKG_DEPENDS_TARGET aml-dtbtools:host u-boot-tools-aml:host lz4:host"
+    PKG_BUILD_PERF="no"
+    ;;
   amlogic-3.14)
     PKG_VERSION="07d26b4ce91cf934d65a64e2da7ab3bc75e59fcc"
     PKG_SHA256="682f93c0bb8ad888a681e93882bc169007bacb880714b980af00ca34fb5b8365"
