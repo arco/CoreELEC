@@ -10,6 +10,11 @@ PKG_DEPENDS_TARGET="toolchain usbutils"
 PKG_LONGDESC="amremote - IR remote configuration utility for Amlogic-based devices"
 
 case "$LINUX" in
+  amlogic-3.10)
+    PKG_VERSION="6431040"
+    PKG_SHA256="5859680b0951ed3d2265999b7ad5309060587815df4dd1c48c6fa9aae039d5c5"
+    PKG_URL="https://github.com/codesnake/amremote/archive/$PKG_VERSION.tar.gz"
+    ;;
   amlogic-3.14)
     PKG_VERSION="05b85d1f9821ae65dca250ba87b369327dd71df3"
     PKG_SHA256="895a64efc05cee3148b4c33f5acbffb87da095d8b8f289f78e0cec26d2ed6f9d"

@@ -1,0 +1,12 @@
+[Unit]
+Description=Disable wifi power saving
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/iw wlan0 set power_save off
+ExecStartPre=/bin/sleep 15
+
+[Install]
+WantedBy=basic.target
