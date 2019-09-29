@@ -1,79 +1,7 @@
-From c9c849f059f7a00c84d6e07316832ab51e1db5da Mon Sep 17 00:00:00 2001
-From: Arthur Liberman <arthur_liberman@hotmail.com>
-Date: Fri, 19 Apr 2019 15:00:49 +0300
-Subject: [PATCH 2/2] add pvr archive support
-
----
- xbmc/FileItem.cpp                             | 16 +++++
- xbmc/FileItem.h                               |  2 +
- .../VideoPlayer/DVDDemuxers/CMakeLists.txt    |  2 +
- .../VideoPlayer/DVDDemuxers/DVDDemuxFFmpeg.h  |  4 +-
- .../DVDDemuxers/DVDDemuxFFmpegArchive.cpp     | 71 +++++++++++++++++++
- .../DVDDemuxers/DVDDemuxFFmpegArchive.h       | 24 +++++++
- .../DVDDemuxers/DVDFactoryDemuxer.cpp         | 12 ++++
- .../DVDInputStreams/CMakeLists.txt            |  2 +
- .../DVDInputStreams/DVDFactoryInputStream.cpp | 17 ++++-
- .../DVDInputStreams/DVDInputStream.h          |  5 +-
- .../DVDInputStreamFFmpegArchive.cpp           | 69 ++++++++++++++++++
- .../DVDInputStreamFFmpegArchive.h             | 34 +++++++++
- xbmc/pvr/PVRManager.cpp                       | 18 ++++-
- 13 files changed, 269 insertions(+), 7 deletions(-)
- create mode 100644 xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpegArchive.cpp
- create mode 100644 xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpegArchive.h
- create mode 100644 xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStreamFFmpegArchive.cpp
- create mode 100644 xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStreamFFmpegArchive.h
-
-diff --git a/xbmc/FileItem.cpp b/xbmc/FileItem.cpp
-index 2a423fcfc0..cab6a2d947 100644
---- a/xbmc/FileItem.cpp
-+++ b/xbmc/FileItem.cpp
-@@ -844,11 +844,27 @@ bool CFileItem::IsEPG() const
-   return HasEPGInfoTag();
- }
- 
-+bool CFileItem::IsEPGWithArchive() const
-+{
-+  if (HasEPGInfoTag())
-+  {
-+    const std::shared_ptr<CPVRChannel> channel = CServiceBroker::GetPVRManager().ChannelGroups()->GetChannelForEpgTag(GetEPGInfoTag());
-+    if (channel)
-+      return channel->HasArchive();
-+  }
-+  return false;
-+}
-+
- bool CFileItem::IsPVRChannel() const
- {
-   return HasPVRChannelInfoTag();
- }
- 
-+bool CFileItem::IsPVRChannelWithArchive() const
-+{
-+  return (HasPVRChannelInfoTag() && GetPVRChannelInfoTag()->HasArchive());
-+}
-+
- bool CFileItem::IsPVRRecording() const
- {
-   return HasPVRRecordingInfoTag();
-diff --git a/xbmc/FileItem.h b/xbmc/FileItem.h
-index 1e94c0e49e..73326d7929 100644
---- a/xbmc/FileItem.h
-+++ b/xbmc/FileItem.h
-@@ -222,7 +222,9 @@ public:
-   bool IsMusicDb() const;
-   bool IsVideoDb() const;
-   bool IsEPG() const;
-+  bool IsEPGWithArchive() const;
-   bool IsPVRChannel() const;
-+  bool IsPVRChannelWithArchive() const;
-   bool IsPVRRecording() const;
-   bool IsUsablePVRRecording() const;
-   bool IsDeletedPVRRecording() const;
-diff --git a/xbmc/cores/VideoPlayer/DVDDemuxers/CMakeLists.txt b/xbmc/cores/VideoPlayer/DVDDemuxers/CMakeLists.txt
-index 48710f847c..90c6542dc5 100644
---- a/xbmc/cores/VideoPlayer/DVDDemuxers/CMakeLists.txt
-+++ b/xbmc/cores/VideoPlayer/DVDDemuxers/CMakeLists.txt
-@@ -5,6 +5,7 @@ set(SOURCES DemuxMultiSource.cpp
+diff -Naur a/xbmc/cores/VideoPlayer/DVDDemuxers/CMakeLists.txt b/xbmc/cores/VideoPlayer/DVDDemuxers/CMakeLists.txt
+--- a/xbmc/cores/VideoPlayer/DVDDemuxers/CMakeLists.txt	2020-05-31 15:31:35.000000000 +0200
++++ b/xbmc/cores/VideoPlayer/DVDDemuxers/CMakeLists.txt	2020-07-16 01:36:51.988582173 +0200
+@@ -5,6 +5,7 @@
              DVDDemuxCDDA.cpp
              DVDDemuxClient.cpp
              DVDDemuxFFmpeg.cpp
@@ -81,7 +9,7 @@ index 48710f847c..90c6542dc5 100644
              DVDDemuxUtils.cpp
              DVDDemuxVobsub.cpp
              DVDFactoryDemuxer.cpp)
-@@ -16,6 +17,7 @@ set(HEADERS DemuxMultiSource.h
+@@ -16,6 +17,7 @@
              DVDDemuxCDDA.h
              DVDDemuxClient.h
              DVDDemuxFFmpeg.h
@@ -89,33 +17,9 @@ index 48710f847c..90c6542dc5 100644
              DVDDemuxUtils.h
              DVDDemuxVobsub.h
              DVDFactoryDemuxer.h)
-diff --git a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpeg.h b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpeg.h
-index f7374b438f..c665597e75 100644
---- a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpeg.h
-+++ b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpeg.h
-@@ -76,7 +76,7 @@ public:
-   CDVDDemuxFFmpeg();
-   ~CDVDDemuxFFmpeg() override;
- 
--  bool Open(std::shared_ptr<CDVDInputStream> pInput, bool streaminfo = true, bool fileinfo = false);
-+  virtual bool Open(std::shared_ptr<CDVDInputStream> pInput, bool streaminfo = true, bool fileinfo = false);
-   void Dispose();
-   bool Reset() override ;
-   void Flush() override;
-@@ -121,7 +121,7 @@ protected:
-   void ResetVideoStreams();
-   AVDictionary *GetFFMpegOptionsFromInput();
-   double ConvertTimestamp(int64_t pts, int den, int num);
--  void UpdateCurrentPTS();
-+  virtual void UpdateCurrentPTS();
-   bool IsProgramChange();
-   unsigned int HLSSelectProgram();
- 
-diff --git a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpegArchive.cpp b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpegArchive.cpp
-new file mode 100644
-index 0000000000..b1ef0d8eb5
---- /dev/null
-+++ b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpegArchive.cpp
+diff -Naur a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpegArchive.cpp b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpegArchive.cpp
+--- a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpegArchive.cpp	1970-01-01 01:00:00.000000000 +0100
++++ b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpegArchive.cpp	2020-07-16 01:36:51.988582173 +0200
 @@ -0,0 +1,71 @@
 +/*
 + *  Copyright (C) 2018 Arthur Liberman
@@ -137,10 +41,10 @@ index 0000000000..b1ef0d8eb5
 +    m_bIsOpening(false), m_seekOffset(0)
 +{ }
 +
-+bool CDVDDemuxFFmpegArchive::Open(std::shared_ptr<CDVDInputStream> pInput, bool streaminfo, bool fileinfo)
++bool CDVDDemuxFFmpegArchive::Open(std::shared_ptr<CDVDInputStream> pInput, bool fileinfo)
 +{
 +  m_bIsOpening = true;
-+  bool ret = CDVDDemuxFFmpeg::Open(pInput, streaminfo, fileinfo);
++  bool ret = CDVDDemuxFFmpeg::Open(pInput, fileinfo);
 +  m_bIsOpening = false;
 +  return ret;
 +}
@@ -188,11 +92,9 @@ index 0000000000..b1ef0d8eb5
 +  if (m_currentPts != DVD_NOPTS_VALUE)
 +    m_currentPts += m_seekOffset;
 +}
-diff --git a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpegArchive.h b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpegArchive.h
-new file mode 100644
-index 0000000000..12c9e4f725
---- /dev/null
-+++ b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpegArchive.h
+diff -Naur a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpegArchive.h b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpegArchive.h
+--- a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpegArchive.h	1970-01-01 01:00:00.000000000 +0100
++++ b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpegArchive.h	2020-07-16 01:36:51.988582173 +0200
 @@ -0,0 +1,24 @@
 +/*
 + *  Copyright (C) 2018 Arthur Liberman
@@ -209,7 +111,7 @@ index 0000000000..12c9e4f725
 +{
 +public:
 +    CDVDDemuxFFmpegArchive();
-+    virtual bool Open(std::shared_ptr<CDVDInputStream> pInput, bool streaminfo = true, bool fileinfo = false) override;
++    virtual bool Open(std::shared_ptr<CDVDInputStream> pInput, bool fileinfo = false) override;
 +    virtual bool SeekTime(double time, bool backwards = false, double* startpts = NULL) override;
 +    virtual DemuxPacket* Read() override;
 +protected:
@@ -218,10 +120,30 @@ index 0000000000..12c9e4f725
 +    bool m_bIsOpening;
 +    double m_seekOffset;
 +};
-diff --git a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDFactoryDemuxer.cpp b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDFactoryDemuxer.cpp
-index 59a4b4be76..d04a81f393 100644
---- a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDFactoryDemuxer.cpp
-+++ b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDFactoryDemuxer.cpp
+diff -Naur a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpeg.h b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpeg.h
+--- a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpeg.h	2020-05-31 15:31:35.000000000 +0200
++++ b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpeg.h	2020-07-16 01:39:23.712579646 +0200
+@@ -83,7 +83,7 @@
+   CDVDDemuxFFmpeg();
+   ~CDVDDemuxFFmpeg() override;
+ 
+-  bool Open(std::shared_ptr<CDVDInputStream> pInput, bool fileinfo);
++  virtual bool Open(std::shared_ptr<CDVDInputStream> pInput, bool fileinfo);
+   void Dispose();
+   bool Reset() override ;
+   void Flush() override;
+@@ -130,7 +130,7 @@
+   void ResetVideoStreams();
+   AVDictionary *GetFFMpegOptionsFromInput();
+   double ConvertTimestamp(int64_t pts, int den, int num);
+-  void UpdateCurrentPTS();
++  virtual void UpdateCurrentPTS();
+   bool IsProgramChange();
+   unsigned int HLSSelectProgram();
+ 
+diff -Naur a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDFactoryDemuxer.cpp b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDFactoryDemuxer.cpp
+--- a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDFactoryDemuxer.cpp	2020-05-31 15:31:35.000000000 +0200
++++ b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDFactoryDemuxer.cpp	2020-07-16 01:36:51.988582173 +0200
 @@ -11,6 +11,7 @@
  #include "DVDInputStreams/DVDInputStream.h"
  
@@ -230,7 +152,7 @@ index 59a4b4be76..d04a81f393 100644
  #include "DVDDemuxBXA.h"
  #include "DVDDemuxCDDA.h"
  #include "DVDDemuxClient.h"
-@@ -85,6 +86,17 @@ CDVDDemux* CDVDFactoryDemuxer::CreateDemuxer(std::shared_ptr<CDVDInputStream> pI
+@@ -71,6 +72,17 @@
        return NULL;
    }
  
@@ -238,7 +160,7 @@ index 59a4b4be76..d04a81f393 100644
 +  {
 +    CLog::Log(LOGDEBUG, "DVDFactoryDemuxer: Create CDVDDemuxFFmpegArchive.");
 +    std::unique_ptr<CDVDDemuxFFmpegArchive> demuxer(new CDVDDemuxFFmpegArchive());
-+    if (demuxer->Open(pInputStream, streaminfo, fileinfo))
++    if (demuxer->Open(pInputStream, fileinfo))
 +      return demuxer.release();
 +    else
 +      return NULL;
@@ -246,12 +168,11 @@ index 59a4b4be76..d04a81f393 100644
 +
 +  CLog::Log(LOGDEBUG, "DVDFactoryDemuxer: Create CDVDDemuxFFmpeg.");
    std::unique_ptr<CDVDDemuxFFmpeg> demuxer(new CDVDDemuxFFmpeg());
-   if(demuxer->Open(pInputStream, streaminfo, fileinfo))
+   if (demuxer->Open(pInputStream, fileinfo))
      return demuxer.release();
-diff --git a/xbmc/cores/VideoPlayer/DVDInputStreams/CMakeLists.txt b/xbmc/cores/VideoPlayer/DVDInputStreams/CMakeLists.txt
-index 5f60202bcb..a064f5e215 100644
---- a/xbmc/cores/VideoPlayer/DVDInputStreams/CMakeLists.txt
-+++ b/xbmc/cores/VideoPlayer/DVDInputStreams/CMakeLists.txt
+diff -Naur a/xbmc/cores/VideoPlayer/DVDInputStreams/CMakeLists.txt b/xbmc/cores/VideoPlayer/DVDInputStreams/CMakeLists.txt
+--- a/xbmc/cores/VideoPlayer/DVDInputStreams/CMakeLists.txt	2020-05-31 15:31:35.000000000 +0200
++++ b/xbmc/cores/VideoPlayer/DVDInputStreams/CMakeLists.txt	2020-07-16 01:36:51.988582173 +0200
 @@ -1,6 +1,7 @@
  set(SOURCES DVDFactoryInputStream.cpp
              DVDInputStream.cpp
@@ -260,7 +181,7 @@ index 5f60202bcb..a064f5e215 100644
              DVDInputStreamFile.cpp
              DVDInputStreamMemory.cpp
              DVDInputStreamNavigator.cpp
-@@ -15,6 +16,7 @@ set(SOURCES DVDFactoryInputStream.cpp
+@@ -15,6 +16,7 @@
  set(HEADERS DVDFactoryInputStream.h
              DVDInputStream.h
              DVDInputStreamFFmpeg.h
@@ -268,10 +189,9 @@ index 5f60202bcb..a064f5e215 100644
              DVDInputStreamFile.h
              DVDInputStreamMemory.h
              DVDInputStreamNavigator.h
-diff --git a/xbmc/cores/VideoPlayer/DVDInputStreams/DVDFactoryInputStream.cpp b/xbmc/cores/VideoPlayer/DVDInputStreams/DVDFactoryInputStream.cpp
-index ec6be71976..529879157b 100644
---- a/xbmc/cores/VideoPlayer/DVDInputStreams/DVDFactoryInputStream.cpp
-+++ b/xbmc/cores/VideoPlayer/DVDInputStreams/DVDFactoryInputStream.cpp
+diff -Naur a/xbmc/cores/VideoPlayer/DVDInputStreams/DVDFactoryInputStream.cpp b/xbmc/cores/VideoPlayer/DVDInputStreams/DVDFactoryInputStream.cpp
+--- a/xbmc/cores/VideoPlayer/DVDInputStreams/DVDFactoryInputStream.cpp	2020-05-31 15:31:35.000000000 +0200
++++ b/xbmc/cores/VideoPlayer/DVDInputStreams/DVDFactoryInputStream.cpp	2020-07-16 01:36:51.992582061 +0200
 @@ -11,6 +11,7 @@
  #include "DVDInputStreamFile.h"
  #include "DVDInputStreamNavigator.h"
@@ -288,7 +208,7 @@ index ec6be71976..529879157b 100644
  
  
  std::shared_ptr<CDVDInputStream> CDVDFactoryInputStream::CreateInputStream(IVideoPlayer* pPlayer, const CFileItem &fileitem, bool scanforextaudio)
-@@ -143,8 +145,18 @@ std::shared_ptr<CDVDInputStream> CDVDFactoryInputStream::CreateInputStream(IVide
+@@ -143,8 +145,18 @@
        }
      }
  
@@ -309,7 +229,7 @@ index ec6be71976..529879157b 100644
  
      if (finalFileitem.GetMimeType() == "application/vnd.apple.mpegurl")
        return std::shared_ptr<CDVDInputStreamFFmpeg>(new CDVDInputStreamFFmpeg(finalFileitem));
-@@ -154,6 +166,7 @@ std::shared_ptr<CDVDInputStream> CDVDFactoryInputStream::CreateInputStream(IVide
+@@ -154,6 +166,7 @@
    }
  
    // our file interface handles all these types of streams
@@ -317,34 +237,9 @@ index ec6be71976..529879157b 100644
    return std::shared_ptr<CDVDInputStreamFile>(new CDVDInputStreamFile(finalFileitem,
                                                                        XFILE::READ_TRUNCATED |
                                                                        XFILE::READ_BITRATE |
-diff --git a/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStream.h b/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStream.h
-index 8dc39442c9..c514cd97c7 100644
---- a/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStream.h
-+++ b/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStream.h
-@@ -30,7 +30,8 @@ enum DVDStreamType
-   DVDSTREAM_TYPE_BLURAY = 11,
-   DVDSTREAM_TYPE_PVRMANAGER = 12,
-   DVDSTREAM_TYPE_MULTIFILES = 13,
--  DVDSTREAM_TYPE_ADDON = 14
-+  DVDSTREAM_TYPE_ADDON = 14,
-+  DVDSTREAM_TYPE_PVR_ARCHIVE = 15
- };
- 
- #define SEEK_POSSIBLE 0x10 // flag used to check if protocol allows seeks
-@@ -169,7 +170,7 @@ public:
-    */
-   virtual bool GetCacheStatus(XFILE::SCacheStatus *status) { return false; }
- 
--  bool IsStreamType(DVDStreamType type) const { return m_streamType == type; }
-+  virtual bool IsStreamType(DVDStreamType type) const { return m_streamType == type; }
-   virtual bool IsEOF() = 0;
-   virtual BitstreamStats GetBitstreamStats() const { return m_stats; }
- 
-diff --git a/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStreamFFmpegArchive.cpp b/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStreamFFmpegArchive.cpp
-new file mode 100644
-index 0000000000..5127655d0d
---- /dev/null
-+++ b/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStreamFFmpegArchive.cpp
+diff -Naur a/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStreamFFmpegArchive.cpp b/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStreamFFmpegArchive.cpp
+--- a/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStreamFFmpegArchive.cpp	1970-01-01 01:00:00.000000000 +0100
++++ b/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStreamFFmpegArchive.cpp	2020-07-16 01:36:51.992582061 +0200
 @@ -0,0 +1,69 @@
 +/*
 + *  Copyright (C) 2018 Arthur Liberman
@@ -415,11 +310,9 @@ index 0000000000..5127655d0d
 +{
 +    return CDVDInputStream::IsStreamType(type) || type == DVDSTREAM_TYPE_PVR_ARCHIVE;
 +}
-diff --git a/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStreamFFmpegArchive.h b/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStreamFFmpegArchive.h
-new file mode 100644
-index 0000000000..f85f5036bc
---- /dev/null
-+++ b/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStreamFFmpegArchive.h
+diff -Naur a/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStreamFFmpegArchive.h b/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStreamFFmpegArchive.h
+--- a/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStreamFFmpegArchive.h	1970-01-01 01:00:00.000000000 +0100
++++ b/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStreamFFmpegArchive.h	2020-07-16 01:36:51.992582061 +0200
 @@ -0,0 +1,34 @@
 +/*
 + *  Copyright (C) 2018 Arthur Liberman
@@ -455,11 +348,76 @@ index 0000000000..f85f5036bc
 +protected:
 +    std::shared_ptr<PVR::CPVRClient> m_client;
 +};
-diff --git a/xbmc/pvr/PVRManager.cpp b/xbmc/pvr/PVRManager.cpp
-index df41b440e2..829afb5655 100644
---- a/xbmc/pvr/PVRManager.cpp
-+++ b/xbmc/pvr/PVRManager.cpp
-@@ -955,12 +955,28 @@ bool CPVRManager::FillStreamFileItem(CFileItem &fileItem)
+diff -Naur a/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStream.h b/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStream.h
+--- a/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStream.h	2020-05-31 15:31:35.000000000 +0200
++++ b/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStream.h	2020-07-16 01:36:51.992582061 +0200
+@@ -30,7 +30,8 @@
+   DVDSTREAM_TYPE_BLURAY = 11,
+   DVDSTREAM_TYPE_PVRMANAGER = 12,
+   DVDSTREAM_TYPE_MULTIFILES = 13,
+-  DVDSTREAM_TYPE_ADDON = 14
++  DVDSTREAM_TYPE_ADDON = 14,
++  DVDSTREAM_TYPE_PVR_ARCHIVE = 15
+ };
+ 
+ #define SEEK_POSSIBLE 0x10 // flag used to check if protocol allows seeks
+@@ -169,7 +170,7 @@
+    */
+   virtual bool GetCacheStatus(XFILE::SCacheStatus *status) { return false; }
+ 
+-  bool IsStreamType(DVDStreamType type) const { return m_streamType == type; }
++  virtual bool IsStreamType(DVDStreamType type) const { return m_streamType == type; }
+   virtual bool IsEOF() = 0;
+   virtual BitstreamStats GetBitstreamStats() const { return m_stats; }
+ 
+diff -Naur a/xbmc/FileItem.cpp b/xbmc/FileItem.cpp
+--- a/xbmc/FileItem.cpp	2020-05-31 15:31:35.000000000 +0200
++++ b/xbmc/FileItem.cpp	2020-07-16 01:36:51.988582173 +0200
+@@ -845,11 +845,27 @@
+   return HasEPGInfoTag();
+ }
+ 
++bool CFileItem::IsEPGWithArchive() const
++{
++  if (HasEPGInfoTag())
++  {
++    const std::shared_ptr<CPVRChannel> channel = CServiceBroker::GetPVRManager().ChannelGroups()->GetChannelForEpgTag(GetEPGInfoTag());
++    if (channel)
++      return channel->HasArchive();
++  }
++  return false;
++}
++
+ bool CFileItem::IsPVRChannel() const
+ {
+   return HasPVRChannelInfoTag();
+ }
+ 
++bool CFileItem::IsPVRChannelWithArchive() const
++{
++  return (HasPVRChannelInfoTag() && GetPVRChannelInfoTag()->HasArchive());
++}
++
+ bool CFileItem::IsPVRRecording() const
+ {
+   return HasPVRRecordingInfoTag();
+diff -Naur a/xbmc/FileItem.h b/xbmc/FileItem.h
+--- a/xbmc/FileItem.h	2020-05-31 15:31:35.000000000 +0200
++++ b/xbmc/FileItem.h	2020-07-16 01:36:51.988582173 +0200
+@@ -223,7 +223,9 @@
+   bool IsMusicDb() const;
+   bool IsVideoDb() const;
+   bool IsEPG() const;
++  bool IsEPGWithArchive() const;
+   bool IsPVRChannel() const;
++  bool IsPVRChannelWithArchive() const;
+   bool IsPVRRecording() const;
+   bool IsUsablePVRRecording() const;
+   bool IsDeletedPVRRecording() const;
+diff -Naur a/xbmc/pvr/PVRManager.cpp b/xbmc/pvr/PVRManager.cpp
+--- a/xbmc/pvr/PVRManager.cpp	2020-05-31 15:31:35.000000000 +0200
++++ b/xbmc/pvr/PVRManager.cpp	2020-07-16 01:36:51.992582061 +0200
+@@ -960,12 +960,28 @@
    const CPVRClientPtr client = GetClient(fileItem);
    if (client)
    {
@@ -489,6 +447,3 @@ index df41b440e2..829afb5655 100644
    }
    return false;
  }
--- 
-2.20.1.windows.1
-
