@@ -252,6 +252,8 @@ if [ -z "$SQUASHFS_COMPRESSION_OPTION" ]; then
     SQUASHFS_COMPRESSION_OPTION="-Xcompression-level 9 -b 524288"
   elif [ "$SQUASHFS_COMPRESSION" = "zstd" ]; then
     SQUASHFS_COMPRESSION_OPTION="-Xcompression-level 22 -b 262144"
+  elif [ "$SQUASHFS_COMPRESSION" = "lz4" ]; then
+    SQUASHFS_COMPRESSION_OPTION="-Xhc -b 262144"
   fi
 fi
 
