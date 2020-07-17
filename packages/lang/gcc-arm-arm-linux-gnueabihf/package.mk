@@ -2,11 +2,11 @@
 # Copyright (C) 2017-present Team LibreELEC (https://libreelec.tv)
 
 PKG_NAME="gcc-arm-arm-linux-gnueabihf"
-PKG_VERSION="8.3-2019.03"
-PKG_SHA256="d4f6480ecaa99e977e3833cc8a8e1263f9eecd1ce2d022bb548a24c4f32670f5"
+PKG_VERSION="7.3.1-2018.05"
+PKG_SHA256="7248bf105d0d468887a9b8a7120bb281ac8ad0223d9cb3d00dc7c2d498485d91"
 PKG_LICENSE="GPL"
 PKG_SITE=""
-PKG_URL="https://developer.arm.com/-/media/Files/downloads/gnu-a/${PKG_VERSION}/binrel/gcc-arm-${PKG_VERSION}-x86_64-arm-linux-gnueabihf.tar.xz"
+PKG_URL="https://releases.linaro.org/components/toolchain/binaries/7.3-2018.05/arm-linux-gnueabihf/gcc-linaro-${PKG_VERSION}-x86_64_arm-linux-gnueabihf.tar.xz"
 PKG_DEPENDS_HOST="ccache:host"
 PKG_LONGDESC="ARM GNU Linux Binary Toolchain"
 PKG_TOOLCHAIN="manual"
